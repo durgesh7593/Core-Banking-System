@@ -1,0 +1,59 @@
+CREATE TABLE Customer (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(15),
+    address TEXT
+);
+CREATE TABLE Account (
+    accountNumber VARCHAR(20) PRIMARY KEY,
+    customerId INT NOT NULL,
+    accountType VARCHAR(20) NOT NULL,
+    balance DECIMAL(15, 2) NOT NULL CHECK (balance >= 0),
+    createdDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customerId) REFERENCES Customer(id) ON DELETE CASCADE
+);
+CREATE TABLE Transaction (
+    id SERIAL PRIMARY KEY,
+    accountNumber VARCHAR(20) NOT NULL,
+    type VARCHAR(20) CHECK (type IN ('deposit', 'withdrawal', 'transfer')),
+    amount DECIMAL(15, 2) NOT NULL CHECK (amount > 0),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT,
+    FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE
+);
+CREATE TABLE AuditLog (
+    id SERIAL PRIMARY KEY,
+    eventType VARCHAR(50),
+    eventTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    accountNumber VARCHAR(20),
+    description TEXT,
+    FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE
+);
+CREATE TABLE Beneficiary (
+    id SERIAL PRIMARY KEY,
+    accountNumber VARCHAR(20) NOT NULL,
+    beneficiaryName VARCHAR(100),
+    beneficiaryAccountNumber VARCHAR(20) NOT NULL,
+    FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE
+);
+CREATE TABLE InterestRate (
+    id SERIAL PRIMARY KEY,
+    accountType VARCHAR(20) UNIQUE NOT NULL,
+    interestRate DECIMAL(5, 2) NOT NULL CHECK (interestRate >= 0)
+);
+CREATE TABLE AccountStatement (
+    id SERIAL PRIMARY KEY,
+    accountNumber VARCHAR(20) NOT NULL,
+    statementDate DATE NOT NULL,
+    openingBalance DECIMAL(15, 2) NOT NULL,
+    closingBalance DECIMAL(15, 2) NOT NULL,
+    FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE
+);
+CREATE TABLE TransactionLog (
+    id SERIAL PRIMARY KEY,
+    transactionId INT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    logTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (transactionId) REFERENCES Transaction(id) ON DELETE CASCADE
+);
