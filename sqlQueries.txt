@@ -1,18 +1,27 @@
-CREATE TABLE Customer (
+-- User Table
+CREATE TABLE User (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     phone VARCHAR(15),
-    address TEXT
+    address TEXT,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    passwordHash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('CUSTOMER', 'SUPERADMIN', 'ADMIN', 'MANAGER')),
+    createdDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Account Table
 CREATE TABLE Account (
     accountNumber VARCHAR(20) PRIMARY KEY,
-    customerId INT NOT NULL,
+    userId INT NOT NULL,
     accountType VARCHAR(20) NOT NULL,
     balance DECIMAL(15, 2) NOT NULL CHECK (balance >= 0),
     createdDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customerId) REFERENCES Customer(id) ON DELETE CASCADE
+    FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE
 );
+
+-- Transaction Table
 CREATE TABLE Transaction (
     id SERIAL PRIMARY KEY,
     accountNumber VARCHAR(20) NOT NULL,
@@ -22,14 +31,20 @@ CREATE TABLE Transaction (
     description TEXT,
     FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE
 );
+
+-- Audit Log Table
 CREATE TABLE AuditLog (
     id SERIAL PRIMARY KEY,
-    eventType VARCHAR(50),
+    eventType VARCHAR(50) NOT NULL,
     eventTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     accountNumber VARCHAR(20),
     description TEXT,
-    FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE
+    adminId INT,
+    FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE,
+    FOREIGN KEY (adminId) REFERENCES User(id) ON DELETE SET NULL
 );
+
+-- Beneficiary Table
 CREATE TABLE Beneficiary (
     id SERIAL PRIMARY KEY,
     accountNumber VARCHAR(20) NOT NULL,
@@ -37,11 +52,15 @@ CREATE TABLE Beneficiary (
     beneficiaryAccountNumber VARCHAR(20) NOT NULL,
     FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE
 );
+
+-- Interest Rate Table
 CREATE TABLE InterestRate (
     id SERIAL PRIMARY KEY,
     accountType VARCHAR(20) UNIQUE NOT NULL,
     interestRate DECIMAL(5, 2) NOT NULL CHECK (interestRate >= 0)
 );
+
+-- Account Statement Table
 CREATE TABLE AccountStatement (
     id SERIAL PRIMARY KEY,
     accountNumber VARCHAR(20) NOT NULL,
@@ -50,10 +69,59 @@ CREATE TABLE AccountStatement (
     closingBalance DECIMAL(15, 2) NOT NULL,
     FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE
 );
+
+-- Transaction Log Table
 CREATE TABLE TransactionLog (
     id SERIAL PRIMARY KEY,
     transactionId INT NOT NULL,
     status VARCHAR(20) NOT NULL,
     logTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (transactionId) REFERENCES Transaction(id) ON DELETE CASCADE
+);
+
+-- Account Approval Table
+CREATE TABLE AccountApproval (
+    id SERIAL PRIMARY KEY,
+    accountNumber VARCHAR(20) NOT NULL,
+    adminId INT NOT NULL,
+    approvalStatus VARCHAR(20) NOT NULL CHECK (approvalStatus IN ('approved', 'rejected')),
+    approvalDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (accountNumber) REFERENCES Account(accountNumber) ON DELETE CASCADE,
+    FOREIGN KEY (adminId) REFERENCES User(id) ON DELETE SET NULL
+);
+
+-- Transaction Approval Table
+CREATE TABLE TransactionApproval (
+    id SERIAL PRIMARY KEY,
+    transactionId INT NOT NULL,
+    adminId INT NOT NULL,
+    approvalStatus VARCHAR(20) NOT NULL CHECK (approvalStatus IN ('approved', 'rejected')),
+    approvalDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (transactionId) REFERENCES Transaction(id) ON DELETE CASCADE,
+    FOREIGN KEY (adminId) REFERENCES User(id) ON DELETE SET NULL
+);
+
+-- Beneficiary Approval Table
+CREATE TABLE BeneficiaryApproval (
+    id SERIAL PRIMARY KEY,
+    beneficiaryId INT NOT NULL,
+    adminId INT NOT NULL,
+    approvalStatus VARCHAR(20) NOT NULL CHECK (approvalStatus IN ('approved', 'rejected')),
+    approvalDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (beneficiaryId) REFERENCES Beneficiary(id) ON DELETE CASCADE,
+    FOREIGN KEY (adminId) REFERENCES User(id) ON DELETE SET NULL
+);
+
+-- Adding email format validation
+ALTER TABLE User 
+ADD CONSTRAINT valid_email 
+CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
+
+
+-- Adding phone format validation
+ALTER TABLE User 
+ADD CONSTRAINT valid_phone 
+CHECK (
+    phone IS NULL OR  -- Allow NULL values
+    phone ~ '^\+?[1-9]\d{1,14}$'  -- E.164 format
 );
